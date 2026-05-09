@@ -1,5 +1,5 @@
--- ETOH File Explorer
--- Searches game files for checkpoint related scripts
+-- ETOH Floor Position Finder
+-- Gets the position of every floor in the current tower
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
@@ -13,49 +13,59 @@ local function notify(title, text)
     end)
 end
 
-notify("ETOH Explorer", "Searching game files...")
-print("=== ETOH File Explorer ===")
+print("=== ETOH Floor Finder ===")
 
--- Search all scripts for checkpoint related code
-local KEYWORDS = {
-    "checkpoint", "stage", "checkpt", "cp",
-    "complete", "finish", "tower", "floor",
-}
+-- Find which tower the player is currently in
+local towers = workspace:FindFirstChild("Towers")
+if not towers then
+    print("No Towers folder found!")
+    notify("Error", "No Towers folder found!")
+    return
+end
 
-print("=== SCRIPTS CONTAINING CHECKPOINT KEYWORDS ===")
-for _, obj in pairs(game:GetDescendants()) do
-    if obj:IsA("LocalScript") or obj:IsA("Script") or obj:IsA("ModuleScript") then
-        local src = ""
-        pcall(function() src = obj.Source:lower() end)
-        if src ~= "" then
-            for _, kw in ipairs(KEYWORDS) do
-                if src:find(kw) then
-                    print("[SCRIPT] "..obj:GetFullName().." contains: "..kw)
-                    break
-                end
+for _, tower in pairs(towers:GetChildren()) do
+    local frame = tower:FindFirstChild("Frame")
+    if frame then
+        print("=== TOWER: "..tower.Name.." ===")
+        -- Get all floors sorted by number
+        local floors = {}
+        for _, floor in pairs(frame:GetChildren()) do
+            local num = tonumber(floor.Name:match("%d+"))
+            if num then
+                table.insert(floors, {name = floor.Name, num = num, obj = floor})
+            end
+        end
+        table.sort(floors, function(a,b) return a.num < b.num end)
+
+        for _, f in ipairs(floors) do
+            -- Get position of first BasePart in floor
+            local part = f.obj:IsA("BasePart") and f.obj
+                or f.obj:FindFirstChildOfClass("BasePart")
+            if part then
+                local p = part.Position
+                print(f.name.." | Pos: "..math.floor(p.X)..","..math.floor(p.Y)..","..math.floor(p.Z))
+            end
+        end
+
+        -- Also print teleporter position
+        local tp = tower:FindFirstChild("Teleporter", true)
+        if tp then
+            local tpPart = tp:IsA("BasePart") and tp or tp:FindFirstChildOfClass("BasePart")
+            if tpPart then
+                local p = tpPart.Position
+                print("Teleporter | Pos: "..math.floor(p.X)..","..math.floor(p.Y)..","..math.floor(p.Z))
             end
         end
     end
 end
 
--- Print ALL remotes in the game
+-- Also print ALL remotes one more time cleanly
 print("=== ALL REMOTES ===")
 for _, obj in pairs(game:GetDescendants()) do
-    if obj:IsA("RemoteEvent") or obj:IsA("RemoteFunction") or obj:IsA("BindableEvent") then
-        print(obj.ClassName..": "..obj:GetFullName())
+    if obj:IsA("RemoteEvent") or obj:IsA("RemoteFunction") then
+        print(obj.ClassName..": "..obj.Name.." | "..obj:GetFullName())
     end
 end
 
--- Look for checkpoint parts in workspace
-print("=== ALL PARTS IN WORKSPACE (first 100) ===")
-local count = 0
-for _, obj in pairs(workspace:GetDescendants()) do
-    if count >= 100 then break end
-    if obj:IsA("BasePart") then
-        print(obj.Name.." | "..obj:GetFullName())
-        count = count + 1
-    end
-end
-
-notify("Done!", "Check console output!")
-print("=== Done! Paste all output ===")
+notify("Done!", "Check console!")
+print("=== Done! ===")
